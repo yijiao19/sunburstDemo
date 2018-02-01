@@ -1,0 +1,29 @@
+{
+  "name": "d3-sunburst",
+  "version": "4.3.1",
+  "description": "Interactive sunburst chart based on d3.js",
+  "main": "sunburst.js",
+  "scripts": {
+    "lint": "eslint --fix *.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mojoaxel/d3-sunburst.git"
+  },
+  "author": "Alexander Wunschik <mail@wunschik.net> (https://github.com/mojoaxel)",
+  "contributors": [
+    "Kerry Rodden"
+  ],
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/mojoaxel/d3-sunburst/issues"
+  },
+  "homepage": "https://github.com/mojoaxel/d3-sunburst#readme",
+  "dependencies": {
+    "d3": "^3.5.17"
+  },
+  "devDependencies": {
+    "eslint": "^3.19.0"
+  }
+}

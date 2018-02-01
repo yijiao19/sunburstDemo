@@ -1,0 +1,254 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <script type="text/javascript" src="d3/d3.js"></script>
+  <script src="https://d3js.org/d3-color.v1.min.js"></script>
+  <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+</head>
+<style>
+  @import url('https://fonts.googleapis.com/css?family=Raleway');
+
+  body {
+    font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+</style>
+
+<body>
+  <svg></svg>
+
+  <script>
+    width = 1000,
+      height = 1000,
+      maxRadius = (Math.min(width, height) / 2) - 5;
+    //var color = d3.scaleOrdinal(colorbrewer.RdBu[9]); // <-- 3
+    //var color = d3.scaleOrdinal(d3.schemeYlOrRd[9]);
+    var color = d3.scaleLinear()
+      .domain([50, 100, 150, 200, 300, 500])
+      .range(["lime", "yellow", "orange", "red", "purple", "darkred"])
+    //.interpolate(d3.interpolateHslLong)
+    ;
+    //var color = d3.scaleSequential(d3.interpolatePiYG);
+    // var color = d3.scaleQuantize()
+    // .domain([0, 30])
+    // .range(["brown", "steelblue"]);
+
+    x = d3.scaleLinear()
+      .range([0, 2 * Math.PI])
+      .clamp(true);
+
+    y = d3.scaleLinear()
+      .range([0, maxRadius]);
+
+      const arc = d3.arc()
+        .startAngle(d => x(d.x0))
+        .endAngle(d => x(d.x1))
+        .innerRadius(d => Math.max(0, y(d.y0)))
+        .outerRadius(d => Math.max(0, y(d.y1)));
+
+    var g = d3.select('svg') // <-- 1
+      .attr('width', width) // <-- 2
+      .attr('height', height)
+      .append('g') // <-- 3
+      .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')'); // <--
+
+    //设置sunburst整体的尺寸
+    //var partition = d3.partition().size([2 * Math.PI, maxRadius]);
+    var partition = d3.partition();
+    d3.text("aqi-test-jan.csv", function(text) {
+      var csv = d3.csvParseRows(text);
+      var json = buildHierarchy(csv);
+      createVisualization(json);
+    });
+
+
+    function createVisualization(nodeData) {
+
+      //传递数据根节点、定义节点数据的计算方法
+
+      var root = d3.hierarchy(nodeData).sum(function(d) {
+
+        return (d.size ? 1 : 0);
+      });
+      var rootSum = d3.hierarchy(nodeData).sum(function(d) {
+        d.size;
+      });
+
+      //将json数据转换成绘制arc需要的data数据
+      //{name: "Sub A1", size: 4}
+      // --> {data: Object, height: 0, depth: 2, parent: qo, value: 4…}
+      partition(root);
+      //定义每个arc的尺寸（四条边界线），x0,x1代表角度范围，y0,y1代表半径距离范围
+
+      var slice = g.selectAll('g')
+        .data(root.descendants())
+        .enter().append('g').attr("class", "node");
+
+      slice.append('path')
+        // .attr("display", function(d) {
+        //   return d.depth ? null : "none";
+        // })
+        .attr("d", arc)
+        .on("click", click)
+        .style('stroke', '#fff')
+        .style('stroke-width', '0.5')
+
+      ;
+      //计算平均值填充颜色
+      root.sum(function(d) {
+        return (d.size == -999) ? 0 : d.size;
+      });
+      //epartition(root);
+      slice.style("fill", function(d) {
+        //return color((d.children ? d : d.parent).data.name);
+        if (d.data.size == -999) {
+          return "#fff";
+        } else {
+          var avg;
+          if (d.children) {
+            var childrenNum = 1;
+            var tempNode = d;
+            for (var i = 0; i <= tempNode.height; i++) {
+
+
+              if (tempNode.height == 1) {//tempNode-->day
+                var validNum = 0;
+              // for (var i = 0; i < array.length; i++) {
+              //   array[i]
+              // }
+                for (var i = 0; i < tempNode.children.length; i++) {
+                  if ( tempNode.children[i].data.size >= 0 ) {
+                    validNum++;
+                  }
+                }
+
+                childrenNum = childrenNum * validNum;
+              }
+              else{
+                  childrenNum = childrenNum * tempNode.children.length;
+                }
+
+
+              tempNode = tempNode.children;
+            }
+            avg = d.value / childrenNum;
+            //console.log("value:" + d.value + " children.length:" + d.children.length);
+            //console.log("avg:" + avg + " children.length:" + d.children.length);
+          }
+
+          return color(d.children ? avg : d.data.size);
+        }
+
+      });
+      // Populate the <text> elements with our data-driven titles.
+      // g.selectAll(".node")
+      //   //  .style("color", "#fff")
+      //   .append("text")
+      //   .attr("transform", function(d) {
+      //     return "translate(" + arc.centroid(d) + ")rotate(" + computeTextRotation(d) + ")";
+      //   })
+      //   .attr("dx", "-20") // radius margin
+      //   .attr("dy", ".5em") // rotation align
+      //   .style('fill', '#111')
+      //   .text(function(d) {
+      //     return d.children ? d.data.name : ""
+      //   });
+    }
+
+    function click(d) {
+      g.transition()
+        .duration(750)
+        .tween('scale', () => {
+          const xd = d3.interpolate(x.domain(), [d.x0, d.x1]),
+            yd = d3.interpolate(y.domain(), [d.y0, 1]);
+          return t => {
+            x.domain(xd(t));
+            y.domain(yd(t));
+          };
+        })
+        .selectAll("path")
+        .attrTween("d", function(d) {
+          return function() {
+            return arc(d);
+          };
+        });
+    }
+
+    /**
+     * Calculate the correct distance to rotate each label based on its location in the sunburst.
+     * @param {Node} d
+     * @return {Number}
+     */
+    function computeTextRotation(d) {
+      var angle = (d.x0 + d.x1) / Math.PI * 90;
+
+      // Avoid upside-down labels
+      return (angle < 120 || angle > 270) ? angle : angle + 180; // labels as rims
+      //return (angle < 180) ? angle - 90 : angle + 90;  // labels as spokes
+    }
+
+    // Take a 2-column CSV and transform it into a hierarchical structure suitable
+    // for a partition layout. The first column is a sequence of step names, from
+    // root to leaf, separated by hyphens. The second column is a count of how
+    // often that sequence occurred.
+    function buildHierarchy(csv) {
+      var root = {
+        "name": "root",
+        "childrenNum": 0,
+        "children": []
+      };
+      for (var i = 0; i < csv.length; i++) {
+        var sequence = csv[i][0];
+        var size = +csv[i][1];
+        if (isNaN(size)) { // e.g. if this is a header row
+          continue;
+        }
+        //2017-Winter-Feb.-1-0
+        var parts = sequence.split("-");
+        //每个节点的孩子数：年-4，季-3，月-30，日-24
+
+
+        var currentNode = root;
+        for (var j = 2; j < parts.length; j++) {
+          var children = currentNode["children"];
+          var nodeName = parts[j];
+          var childNode;
+          if (j + 1 < parts.length) {
+            // Not yet at the end of the sequence; move down the tree.
+            var foundChild = false;
+            for (var k = 0; k < children.length; k++) {
+              if (children[k]["name"] == nodeName) {
+                childNode = children[k];
+                foundChild = true;
+                break;
+              }
+            }
+            // If we don't already have a child node for this branch, create it.
+            if (!foundChild) {
+              childNode = {
+                "name": nodeName,
+                "children": []
+              };
+              children.push(childNode);
+            }
+            currentNode = childNode;
+          } else {
+            // Reached the end of the sequence; create a leaf node.
+            childNode = {
+              "name": nodeName,
+              "size": size
+            };
+            children.push(childNode);
+          }
+        }
+      }
+      return root.children[0];
+    };
+  </script>
+</body>
+
+</html>
