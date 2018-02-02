@@ -27,6 +27,8 @@
       maxRadius = (Math.min(width, height) / 2) - 5;
     //var color = d3.scaleOrdinal(colorbrewer.RdBu[9]); // <-- 3
     //var color = d3.scaleOrdinal(d3.schemeYlOrRd[9]);
+    var formatNumber = d3.format(",d");
+
     var color = d3.scaleLinear()
       .domain([50, 100, 150, 200, 300, 500])
       .range(["lime", "yellow", "orange", "red", "purple", "darkred"])
@@ -44,11 +46,11 @@
     y = d3.scaleLinear()
       .range([0, maxRadius]);
 
-      const arc = d3.arc()
-        .startAngle(d => x(d.x0))
-        .endAngle(d => x(d.x1))
-        .innerRadius(d => Math.max(0, y(d.y0)))
-        .outerRadius(d => Math.max(0, y(d.y1)));
+    const arc = d3.arc()
+      .startAngle(d => x(d.x0))
+      .endAngle(d => x(d.x1))
+      .innerRadius(d => Math.max(0, y(d.y0)))
+      .outerRadius(d => Math.max(0, y(d.y1)));
 
     var g = d3.select('svg') // <-- 1
       .attr('width', width) // <-- 2
@@ -99,75 +101,53 @@
 
       ;
       //计算平均值填充颜色
-      root.sum(function(d) {
-        return (d.size == -999) ? 0 : d.size;
-      });
-      //epartition(root);
-      slice.style("fill", function(d) {
-        //return color((d.children ? d : d.parent).data.name);
-        if (d.data.size == -999) {
-          return "#fff";
-        } else {
-          var avg;
-          if (d.children) {
-            var childrenNum = 1;
-            var tempNode = d;
-            for (var i = 0; i <= tempNode.height; i++) {
-
-
-              if (tempNode.height == 1) {//tempNode-->day
-                var validNum = 0;
-              // for (var i = 0; i < array.length; i++) {
-              //   array[i]
-              // }
-                for (var i = 0; i < tempNode.children.length; i++) {
-                  if ( tempNode.children[i].data.size >= 0 ) {
-                    validNum++;
-                  }
-                }
-
-                childrenNum = childrenNum * validNum;
-              }
-              else{
-                  childrenNum = childrenNum * tempNode.children.length;
-                }
-
-
-              tempNode = tempNode.children;
+      root.eachAfter(function(d) {
+        var sum = 0;
+        var count = 0;
+        if (d.children) {
+          for (var i = 0; i < d.children.length; i++) {
+            if (d.children[i].value != -999) {
+              sum += d.children[i].value;
+              count++;
             }
-            avg = d.value / childrenNum;
-            //console.log("value:" + d.value + " children.length:" + d.children.length);
-            //console.log("avg:" + avg + " children.length:" + d.children.length);
           }
-
-          return color(d.children ? avg : d.data.size);
+          d.value = sum / count;
+        } else {
+          d.value = d.data.size;
         }
 
       });
-      // Populate the <text> elements with our data-driven titles.
-      // g.selectAll(".node")
-      //   //  .style("color", "#fff")
-      //   .append("text")
-      //   .attr("transform", function(d) {
-      //     return "translate(" + arc.centroid(d) + ")rotate(" + computeTextRotation(d) + ")";
-      //   })
-      //   .attr("dx", "-20") // radius margin
-      //   .attr("dy", ".5em") // rotation align
-      //   .style('fill', '#111')
-      //   .text(function(d) {
-      //     return d.children ? d.data.name : ""
-      //   });
+
+      // root.sum(function(d) {
+      //   return (d.size == -999) ? 0 : d.size;
+      // });
+
+      //epartition(root);
+      slice.style("fill", function(d) {
+        //return color((d.children ? d : d.parent).data.name);
+        if (d.value == -999) {
+          return "#fff";
+        } else {
+          return color(d.value);
+        }
+      });
+      slice.append("title")
+        .text(function(d) { return d.data.name + "\n" + formatNumber(d.value); });
+
     }
+
+  
 
     function click(d) {
       g.transition()
         .duration(750)
         .tween('scale', () => {
           const xd = d3.interpolate(x.domain(), [d.x0, d.x1]),
-            yd = d3.interpolate(y.domain(), [d.y0, 1]);
+            yd = d3.interpolate(y.domain(), [d.y0, 1]),
+            yr = d3.interpolate(y.range(), [d.y0 ? 20 : 0, maxRadius]);
           return t => {
             x.domain(xd(t));
-            y.domain(yd(t));
+            y.domain(yd(t)).range(yr(t));
           };
         })
         .selectAll("path")
@@ -175,7 +155,12 @@
           return function() {
             return arc(d);
           };
-        });
+        })
+
+      ;
+      //g.selectAll("text").attr("opacity", 0);
+      // g.selectAll("text")
+      // .attrTween("transform", (d) => { return () => { return arcText(d) } });
     }
 
     /**
@@ -184,7 +169,7 @@
      * @return {Number}
      */
     function computeTextRotation(d) {
-      var angle = (d.x0 + d.x1) / Math.PI * 90;
+      var angle = (d.x1 - d.x0) / Math.PI * 90;
 
       // Avoid upside-down labels
       return (angle < 120 || angle > 270) ? angle : angle + 180; // labels as rims
