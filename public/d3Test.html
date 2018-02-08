@@ -61,7 +61,7 @@
     //设置sunburst整体的尺寸
     //var partition = d3.partition().size([2 * Math.PI, maxRadius]);
     var partition = d3.partition();
-    d3.text("aqi-test-jan.csv", function(text) {
+    d3.text("aqi-test-spring.csv", function(text) {
       var csv = d3.csvParseRows(text);
       var json = buildHierarchy(csv);
       createVisualization(json);
@@ -111,7 +111,10 @@
               count++;
             }
           }
-          d.value = sum / count;
+          if (count) {
+            d.value = sum / count;
+          }
+          else d.value = -999; //所有子节点都是缺省值-999
         } else {
           d.value = d.data.size;
         }
@@ -136,7 +139,7 @@
 
     }
 
-  
+
 
     function click(d) {
       g.transition()
@@ -198,7 +201,7 @@
 
 
         var currentNode = root;
-        for (var j = 2; j < parts.length; j++) {
+        for (var j = 1; j < parts.length; j++) {
           var children = currentNode["children"];
           var nodeName = parts[j];
           var childNode;
