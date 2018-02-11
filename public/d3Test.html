@@ -24,7 +24,7 @@
   <script>
     width = 1000,
       height = 1000,
-      maxRadius = (Math.min(width, height) / 2) - 5;
+      maxRadius = (Math.min(width, height) / 2) - 200;
     //var color = d3.scaleOrdinal(colorbrewer.RdBu[9]); // <-- 3
     //var color = d3.scaleOrdinal(d3.schemeYlOrRd[9]);
     var formatNumber = d3.format(",d");
@@ -49,8 +49,10 @@
     const arc = d3.arc()
       .startAngle(d => x(d.x0))
       .endAngle(d => x(d.x1))
-      .innerRadius(d => Math.max(0, y(d.y0)))
-      .outerRadius(d => Math.max(0, y(d.y1)));
+       .innerRadius(d => Math.max(0, y(d.y0)))
+       .outerRadius(d => Math.max(0, y(d.y1)));
+      //.innerRadius(function(d) { return maxRadius / 3 * d.depth; })
+      //.outerRadius(function(d) { return maxRadius / 3 * (d.depth + 1) - 1; });
 
     var g = d3.select('svg') // <-- 1
       .attr('width', width) // <-- 2
@@ -61,7 +63,7 @@
     //设置sunburst整体的尺寸
     //var partition = d3.partition().size([2 * Math.PI, maxRadius]);
     var partition = d3.partition();
-    d3.text("aqi-test-spring.csv", function(text) {
+    d3.text("aqi-test-2017.csv", function(text) {
       var csv = d3.csvParseRows(text);
       var json = buildHierarchy(csv);
       createVisualization(json);
@@ -83,6 +85,7 @@
       //将json数据转换成绘制arc需要的data数据
       //{name: "Sub A1", size: 4}
       // --> {data: Object, height: 0, depth: 2, parent: qo, value: 4…}
+      //根节点depth = 0;
       partition(root);
       //定义每个arc的尺寸（四条边界线），x0,x1代表角度范围，y0,y1代表半径距离范围
 
@@ -92,12 +95,12 @@
 
       slice.append('path')
         // .attr("display", function(d) {
-        //   return d.depth ? null : "none";
+        //   return d.depth <3 ? null : "none";
         // })
         .attr("d", arc)
         .on("click", click)
         .style('stroke', '#fff')
-        .style('stroke-width', '0.5')
+        .style('stroke-width', '0.1')
 
       ;
       //计算平均值填充颜色
@@ -133,17 +136,21 @@
         } else {
           return color(d.value);
         }
+      })
+      .style("fill-opacity",function(d) {
+        return (d.depth) <4? 1 : 0;
       });
       slice.append("title")
-        .text(function(d) { return d.data.name + "\n" + formatNumber(d.value); });
+        .text(function(d) { return d.data.name + "\n" + "AQI : " + formatNumber(d.value); });
 
     }
 
 
 
     function click(d) {
+      var depth0 = d.depth;//记录初始深度
       g.transition()
-        .duration(750)
+        .duration(1000)
         .tween('scale', () => {
           const xd = d3.interpolate(x.domain(), [d.x0, d.x1]),
             yd = d3.interpolate(y.domain(), [d.y0, 1]),
@@ -159,6 +166,12 @@
             return arc(d);
           };
         })
+        .style("fill-opacity",function(d) {
+          return (d.depth - depth0) <4? 1 : 0;
+        })
+        // .attr("display", function(d) {
+        //   return (d.depth - depth0) <3? null : "none";
+        // })
 
       ;
       //g.selectAll("text").attr("opacity", 0);
@@ -201,7 +214,7 @@
 
 
         var currentNode = root;
-        for (var j = 1; j < parts.length; j++) {
+        for (var j = 0; j < parts.length; j++) {
           var children = currentNode["children"];
           var nodeName = parts[j];
           var childNode;
