@@ -12,32 +12,47 @@
 </head>
 <style>
   @import url('https://fonts.googleapis.com/css?family=Raleway');
-
   body {
     font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  #legend {
+    padding: 10px 0 0 3px;
+  }
+
+  #sequence text,
+  #legend text {
+    font-weight: 600;
+    fill: #fff;
   }
 </style>
 
 <body>
+  <div id="sequence"></div>
+  <div id="legend"></div>
   <svg></svg>
 
   <script>
     width = 1000,
       height = 1000,
-      maxRadius = (Math.min(width, height) / 2) - 200;
+      maxRadius = (Math.min(width, height) / 2);
     //var color = d3.scaleOrdinal(colorbrewer.RdBu[9]); // <-- 3
     //var color = d3.scaleOrdinal(d3.schemeYlOrRd[9]);
     var formatNumber = d3.format(",d");
-
+    // Breadcrumb dimensions: width, height, spacing, width of tip/tail.
+    var b = {
+      w: 75,
+      h: 30,
+      s: 3,
+      t: 10
+    };
     var color = d3.scaleLinear()
       .domain([50, 100, 150, 200, 300, 500])
-      .range(["lime", "yellow", "orange", "red", "purple", "darkred"])
-    //.interpolate(d3.interpolateHslLong)
-    ;
-    //var color = d3.scaleSequential(d3.interpolatePiYG);
-    // var color = d3.scaleQuantize()
-    // .domain([0, 30])
-    // .range(["brown", "steelblue"]);
+      .range(["lime", "yellow", "orange", "red", "purple", "darkred"]);
+    var year = {
+      name: "2017",
+      value: "-999"
+    };
 
     x = d3.scaleLinear()
       .range([0, 2 * Math.PI])
@@ -49,14 +64,14 @@
     const arc = d3.arc()
       .startAngle(d => x(d.x0))
       .endAngle(d => x(d.x1))
-       .innerRadius(d => Math.max(0, y(d.y0)))
-       .outerRadius(d => Math.max(0, y(d.y1)));
-      //.innerRadius(function(d) { return maxRadius / 3 * d.depth; })
-      //.outerRadius(function(d) { return maxRadius / 3 * (d.depth + 1) - 1; });
+      .innerRadius(d => Math.max(0, y(d.y0)))
+      .outerRadius(d => Math.max(0, y(d.y1)));
+    //.innerRadius(function(d) { return maxRadius / 3 * d.depth; })
+    //.outerRadius(function(d) { return maxRadius / 3 * (d.depth + 1) - 1; });
 
     var g = d3.select('svg') // <-- 1
       .attr('width', width) // <-- 2
-      .attr('height', height)
+      .attr('height', height + 100)
       .append('g') // <-- 3
       .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')'); // <--
 
@@ -72,6 +87,8 @@
 
     function createVisualization(nodeData) {
 
+      initializeBreadcrumbTrail();
+      drawLegend();
       //传递数据根节点、定义节点数据的计算方法
 
       var root = d3.hierarchy(nodeData).sum(function(d) {
@@ -101,8 +118,7 @@
         .on("click", click)
         .style('stroke', '#fff')
         .style('stroke-width', '0.1')
-
-      ;
+        .on("mouseover", mouseover);;
       //计算平均值填充颜色
       root.eachAfter(function(d) {
         var sum = 0;
@@ -116,39 +132,173 @@
           }
           if (count) {
             d.value = sum / count;
-          }
-          else d.value = -999; //所有子节点都是缺省值-999
+          } else d.value = -999; //所有子节点都是缺省值-999
         } else {
           d.value = d.data.size;
         }
 
       });
-
+      year.name = root.data.name;
+      year.value = root.value;
       // root.sum(function(d) {
       //   return (d.size == -999) ? 0 : d.size;
       // });
 
       //epartition(root);
       slice.style("fill", function(d) {
-        //return color((d.children ? d : d.parent).data.name);
-        if (d.value == -999) {
-          return "#fff";
-        } else {
-          return color(d.value);
-        }
-      })
-      .style("fill-opacity",function(d) {
-        return (d.depth) <4? 1 : 0;
-      });
+          //return color((d.children ? d : d.parent).data.name);
+          if (d.value == -999) {
+            return "#fff";
+          } else {
+            return color(d.value);
+          }
+        })
+        .style("fill-opacity", function(d) {
+          return (d.depth) < 4 ? 1 : 0;
+        });
       slice.append("title")
-        .text(function(d) { return d.data.name + "\n" + "AQI : " + formatNumber(d.value); });
+        .text(function(d) {
+          return d.data.name + "\n" + "AQI : " + formatNumber(d.value);
+        });
 
     }
 
 
+    //show  the current slice in the breadcrumb trail.
+    function mouseover(d) {
+      if (d.value == -999) {
+        aqiString = "AQI : " + "null";
+      }else
+      aqiString = "AQI : " + formatNumber(d.value);
+      var sequenceArray = getAncestors(d);
+      updateBreadcrumbs(sequenceArray, aqiString);
+
+    }
+    // Restore everything to full opacity when moving off the visualization.
+    function mouseleave(d) {
+
+      // Hide the breadcrumb trail
+      d3.select("#trail")
+        .style("visibility", "hidden");
+
+      // // Deactivate all segments during transition.
+      // d3.selectAll("path").on("mouseover", null);
+      //
+      // // Transition each segment to full opacity and then reactivate it.
+      // d3.selectAll("path")
+      //     .transition()
+      //     .duration(1000)
+      //     .style("opacity", 1)
+      //     .each("end", function() {
+      //             d3.select(this).on("mouseover", mouseover);
+      //           });
+
+
+    }
+    // Given a node in a partition layout, return an array of all of its ancestor
+    // nodes, highest first, but excluding the root.
+    function getAncestors(node) {
+      var path = [];
+      var current = node;
+      while (current.parent) {
+        path.unshift(current);
+        current = current.parent;
+      }
+      return path;
+    }
+
+    function initializeBreadcrumbTrail() {
+      // Add the svg area.
+      var trail = d3.select("#sequence").append("svg:svg")
+        .attr("width", width)
+        .attr("height", 50)
+        .attr("id", "trail");
+      trail.append("svg:polygon")
+        .attr("points", breadcrumbPoints)
+        .style("fill", function(d) {
+          return color(year.value);
+        });
+        trail.append("svg:text")
+          .attr("x", (b.w + b.t) / 2)
+          .attr("y", b.h / 2)
+          .attr("dy", "0.35em")
+          .attr("text-anchor", "middle")
+          .text(function(d) {
+            return year.name;
+          });
+      // Add the label at the end, for the percentage.
+      trail.append("svg:text")
+        .attr("id", "endlabel")
+        .style("fill", "#000");
+
+    }
+
+    // Generate a string that describes the points of a breadcrumb polygon.
+    function breadcrumbPoints(d, i) {
+      var points = [];
+      points.push("0,0");
+      points.push(b.w + ",0");
+      points.push(b.w + b.t + "," + (b.h / 2));
+      points.push(b.w + "," + b.h);
+      points.push("0," + b.h);
+      if (i > 0) { // Leftmost breadcrumb; don't include 6th vertex.
+        points.push(b.t + "," + (b.h / 2));
+      }
+      return points.join(" ");
+    }
+
+    // Update the breadcrumb trail to show the current sequence and percentage.
+    function updateBreadcrumbs(nodeArray, aqiString) {
+
+      // Data join; key function combines name and depth (= position in sequence).
+      var g = d3.select("#trail")
+        .selectAll("g")
+        .data(nodeArray, function(d) {
+          return d.name + d.depth;
+        });
+
+      // Add breadcrumb and label for entering nodes.
+      var entering = g.enter().append("svg:g");
+
+      entering.append("svg:polygon")
+        .attr("points", breadcrumbPoints)
+        .style("fill", function(d) {
+          return color(d.value);
+        });
+
+      entering.append("svg:text")
+        .attr("x", (b.w + b.t) / 2)
+        .attr("y", b.h / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .text(function(d) {
+          return d.data.name;
+        });
+
+      // Set position for entering and updating nodes.
+      entering.attr("transform", function(d, i) {
+        return "translate(" + (i+1) * (b.w + b.s) + ", 0)";
+      });
+
+      // Remove exiting nodes.
+      g.exit().remove();
+
+      // Now move and update the percentage at the end.
+      d3.select("#trail").select("#endlabel")
+        .attr("x", (nodeArray.length + 1.8) * (b.w + b.s))
+        .attr("y", b.h / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .text(aqiString);
+
+      // Make the breadcrumb trail visible, if it's hidden.
+      d3.select("#trail")
+        .style("visibility", "");
+
+    }
 
     function click(d) {
-      var depth0 = d.depth;//记录初始深度
+      var depth0 = d.depth; //记录初始深度
       g.transition()
         .duration(1000)
         .tween('scale', () => {
@@ -166,17 +316,10 @@
             return arc(d);
           };
         })
-        .style("fill-opacity",function(d) {
-          return (d.depth - depth0) <4? 1 : 0;
+        .style("fill-opacity", function(d) {
+          return (d.depth - depth0) < 4 ? 1 : 0;
         })
-        // .attr("display", function(d) {
-        //   return (d.depth - depth0) <3? null : "none";
-        // })
 
-      ;
-      //g.selectAll("text").attr("opacity", 0);
-      // g.selectAll("text")
-      // .attrTween("transform", (d) => { return () => { return arcText(d) } });
     }
 
     /**
@@ -249,6 +392,54 @@
       }
       return root.children[0];
     };
+
+    function drawLegend() {
+
+      // Dimensions of legend item: width, height, spacing, radius of rounded rect.
+      var li = {
+        w: 75,
+        h: 30,
+        s: 3,
+        r: 3
+      };
+
+      var colors = {
+        "50": "lime",
+        "100": "yellow",
+        "150": "orange",
+        "200": "red",
+        "300": "purple",
+        "500": "darkred"
+      };
+      var legend = d3.select("#legend").append("svg:svg")
+        .attr("height", li.h)
+        .attr("width", d3.keys(colors).length * (li.w + li.s));
+
+      var g = legend.selectAll("g")
+        .data(d3.entries(colors))
+        .enter().append("svg:g")
+        .attr("transform", function(d, i) {
+          return "translate(" + i * (li.w + li.s) + ",0)";
+        });
+
+      g.append("svg:rect")
+        .attr("rx", li.r)
+        .attr("ry", li.r)
+        .attr("width", li.w)
+        .attr("height", li.h)
+        .style("fill", function(d) {
+          return d.value;
+        });
+
+      g.append("svg:text")
+        .attr("x", li.w / 2)
+        .attr("y", li.h / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .text(function(d) {
+          return d.key;
+        });
+    }
   </script>
 </body>
 
