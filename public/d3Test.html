@@ -16,25 +16,58 @@
     font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
-  #legend {
+  #main {
+    float: left;
+    width: 750px;
+  }
+
+  #sidebar {
+    float: right;
+
+  }
+
+  #sequence {
+    padding: 10px 0 0 3px;
+    width: 600px;
+    height: 60px;
+  }
+
+  #scheme {
+    position: relative;
     padding: 10px 0 0 3px;
   }
 
   #sequence text,
-  #legend text {
+  #scheme  text {
     font-weight: 600;
-    fill: #fff;
+    fill: #333;
+  }
+
+  #chart {
+    position: relative;
   }
 </style>
 
 <body>
-  <div id="sequence"></div>
-  <div id="legend"></div>
-  <svg></svg>
 
+
+
+
+
+
+    <div id="sequence"></div>
+    <div id="chart">
+      <svg></svg>
+    </div>
+<div id="scheme">
+  <div style="padding: 0 0 10px 3px">
+  <text style="font-size: 1.2em;">  Color Scheme</text>
+  </div>
+    <div id="legend" ></div>
+  </div>
   <script>
-    width = 1000,
-      height = 1000,
+    width = 500,
+      height = 500,
       maxRadius = (Math.min(width, height) / 2);
     //var color = d3.scaleOrdinal(colorbrewer.RdBu[9]); // <-- 3
     //var color = d3.scaleOrdinal(d3.schemeYlOrRd[9]);
@@ -71,7 +104,7 @@
 
     var g = d3.select('svg') // <-- 1
       .attr('width', width) // <-- 2
-      .attr('height', height + 100)
+      .attr('height', height )
       .append('g') // <-- 3
       .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')'); // <--
 
@@ -168,8 +201,8 @@
     function mouseover(d) {
       if (d.value == -999) {
         aqiString = "AQI : " + "null";
-      }else
-      aqiString = "AQI : " + formatNumber(d.value);
+      } else
+        aqiString = "AQI : " + formatNumber(d.value);
       var sequenceArray = getAncestors(d);
       updateBreadcrumbs(sequenceArray, aqiString);
 
@@ -218,14 +251,14 @@
         .style("fill", function(d) {
           return color(year.value);
         });
-        trail.append("svg:text")
-          .attr("x", (b.w + b.t) / 2)
-          .attr("y", b.h / 2)
-          .attr("dy", "0.35em")
-          .attr("text-anchor", "middle")
-          .text(function(d) {
-            return year.name;
-          });
+      trail.append("svg:text")
+        .attr("x", (b.w + b.t) / 2)
+        .attr("y", b.h / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .text(function(d) {
+          return year.name;
+        });
       // Add the label at the end, for the percentage.
       trail.append("svg:text")
         .attr("id", "endlabel")
@@ -254,7 +287,7 @@
       var g = d3.select("#trail")
         .selectAll("g")
         .data(nodeArray, function(d) {
-          return d.name + d.depth;
+          return d.data.name + d.depth;
         });
 
       // Add breadcrumb and label for entering nodes.
@@ -277,7 +310,7 @@
 
       // Set position for entering and updating nodes.
       entering.attr("transform", function(d, i) {
-        return "translate(" + (i+1) * (b.w + b.s) + ", 0)";
+        return "translate(" + (i + 1) * (b.w + b.s) + ", 0)";
       });
 
       // Remove exiting nodes.
