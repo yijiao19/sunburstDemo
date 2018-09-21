@@ -14,11 +14,13 @@
   @import url('https://fonts.googleapis.com/css?family=Raleway');
   body {
     font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
   }
 
   #main {
     float: left;
     width: 750px;
+      background-color: #fff;
   }
 
   #sidebar {
@@ -49,15 +51,9 @@
 </style>
 
 <body>
-
-
-
-
-
-
     <div id="sequence"></div>
     <div id="chart">
-      <svg></svg>
+      <svg style="  background-color: #000"></svg>
     </div>
 <div id="scheme">
   <div style="padding: 0 0 10px 3px">
@@ -69,10 +65,8 @@
     width = 500,
       height = 500,
       maxRadius = (Math.min(width, height) / 2);
-    //var color = d3.scaleOrdinal(colorbrewer.RdBu[9]); // <-- 3
-    //var color = d3.scaleOrdinal(d3.schemeYlOrRd[9]);
+
     var formatNumber = d3.format(",d");
-    // Breadcrumb dimensions: width, height, spacing, width of tip/tail.
     var b = {
       w: 75,
       h: 30,
@@ -99,8 +93,6 @@
       .endAngle(d => x(d.x1))
       .innerRadius(d => Math.max(0, y(d.y0)))
       .outerRadius(d => Math.max(0, y(d.y1)));
-    //.innerRadius(function(d) { return maxRadius / 3 * d.depth; })
-    //.outerRadius(function(d) { return maxRadius / 3 * (d.depth + 1) - 1; });
 
     var g = d3.select('svg') // <-- 1
       .attr('width', width) // <-- 2
@@ -109,7 +101,6 @@
       .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')'); // <--
 
     //设置sunburst整体的尺寸
-    //var partition = d3.partition().size([2 * Math.PI, maxRadius]);
     var partition = d3.partition();
     d3.text("aqi-test-2017.csv", function(text) {
       var csv = d3.csvParseRows(text);
@@ -120,8 +111,8 @@
 
     function createVisualization(nodeData) {
 
-      initializeBreadcrumbTrail();
-      drawLegend();
+    //  initializeBreadcrumbTrail();
+    //  drawLegend();
       //传递数据根节点、定义节点数据的计算方法
 
       var root = d3.hierarchy(nodeData).sum(function(d) {
@@ -144,13 +135,10 @@
         .enter().append('g').attr("class", "node");
 
       slice.append('path')
-        // .attr("display", function(d) {
-        //   return d.depth <3 ? null : "none";
-        // })
         .attr("d", arc)
         .on("click", click)
         .style('stroke', '#fff')
-        .style('stroke-width', '0.1')
+        .style('stroke-width', '0.0')
         .on("mouseover", mouseover);;
       //计算平均值填充颜色
       root.eachAfter(function(d) {
@@ -173,11 +161,7 @@
       });
       year.name = root.data.name;
       year.value = root.value;
-      // root.sum(function(d) {
-      //   return (d.size == -999) ? 0 : d.size;
-      // });
 
-      //epartition(root);
       slice.style("fill", function(d) {
           //return color((d.children ? d : d.parent).data.name);
           if (d.value == -999) {
@@ -187,6 +171,10 @@
           }
         })
         .style("fill-opacity", function(d) {
+          if (d.value == -999) {
+            return 0;
+          }
+          else
           return (d.depth) < 4 ? 1 : 0;
         });
       slice.append("title")
@@ -209,24 +197,9 @@
     }
     // Restore everything to full opacity when moving off the visualization.
     function mouseleave(d) {
-
       // Hide the breadcrumb trail
       d3.select("#trail")
         .style("visibility", "hidden");
-
-      // // Deactivate all segments during transition.
-      // d3.selectAll("path").on("mouseover", null);
-      //
-      // // Transition each segment to full opacity and then reactivate it.
-      // d3.selectAll("path")
-      //     .transition()
-      //     .duration(1000)
-      //     .style("opacity", 1)
-      //     .each("end", function() {
-      //             d3.select(this).on("mouseover", mouseover);
-      //           });
-
-
     }
     // Given a node in a partition layout, return an array of all of its ancestor
     // nodes, highest first, but excluding the root.
@@ -350,6 +323,10 @@
           };
         })
         .style("fill-opacity", function(d) {
+          if (d.value == -999) {
+            return "#fff";
+          }
+          else
           return (d.depth - depth0) < 4 ? 1 : 0;
         })
 
